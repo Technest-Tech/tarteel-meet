@@ -6,27 +6,27 @@ import { Toaster } from 'react-hot-toast';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Almajd Academy | Video Conferencing',
+    default: 'Tarteel-Meet | Video Conferencing',
     template: '%s',
   },
   description:
-    'Almajd Academy provides secure video conferencing for educational and business meetings. Access your meetings using room links provided by your administrator.',
+    'Tarteel-Meet provides secure video conferencing for educational and business meetings. Access your meetings using room links provided by your administrator.',
   twitter: {
-    creator: '@almajdacademy',
-    site: '@almajdacademy',
+    creator: '@tarteelacademy',
+    site: '@tarteelacademy',
     card: 'summary_large_image',
   },
   openGraph: {
-    url: 'https://almajdacademy.com',
+    url: 'https://tarteelacademy.com',
     images: [
       {
-        url: 'https://almajdacademy.com/images/almajd-open-graph.png',
+        url: 'https://tarteelacademy.com/images/tarteel-open-graph.png',
         width: 2000,
         height: 1000,
         type: 'image/png',
       },
     ],
-    siteName: 'Almajd Academy',
+    siteName: 'Tarteel-Meet',
   },
   icons: {
     icon: {

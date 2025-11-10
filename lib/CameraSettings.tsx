@@ -23,7 +23,7 @@ if (typeof window !== 'undefined') {
 
 // Background image - using the logo from public folder
 const BACKGROUND_IMAGES = [
-  { name: 'Almajd', path: '/logo.png' },
+  { name: 'Tarteel', path: '/tarteel.png' },
 ];
 
 // Background options

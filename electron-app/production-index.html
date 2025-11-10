@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajd Meet Desktop</title>
+    <title>Tarteel-Meet Desktop</title>
     <style>
         * {
             margin: 0;
@@ -321,7 +321,7 @@
         <!-- Loading Screen -->
         <div id="loading-screen" class="loading-screen">
             <div class="loading-spinner"></div>
-            <div class="loading-text">Loading Almajd Meet</div>
+            <div class="loading-text">Loading Tarteel-Meet</div>
             <div class="loading-subtitle">Preparing your video conference experience...</div>
         </div>
 
@@ -329,8 +329,8 @@
         <div id="entry-screen" class="entry-screen">
             <div class="entry-container">
                 <div class="header-section">
-                    <div class="logo">AM</div>
-                    <h1 class="app-title">Almajd Meet</h1>
+                    <div class="logo">TM</div>
+                    <h1 class="app-title">Tarteel-Meet</h1>
                     <p class="app-subtitle">Join your video conference</p>
                 </div>
 
@@ -402,7 +402,7 @@
     </div>
 
     <script>
-        class AlmajdMeetDesktopApp {
+        class TarteelMeetDesktopApp {
             constructor() {
                 this.currentRoom = null;
                 this.participantName = null;
@@ -415,8 +415,8 @@
                 this.showScreen('loading-screen');
                 
                 // Check if we have stored room info
-                const storedRoom = localStorage.getItem('almajd-last-room');
-                const storedName = localStorage.getItem('almajd-last-name');
+                const storedRoom = localStorage.getItem('tarteel-last-room');
+                const storedName = localStorage.getItem('tarteel-last-name');
                 
                 if (storedRoom) {
                     document.getElementById('room-name').value = storedRoom;
@@ -471,8 +471,8 @@
                 }
 
                 // Store room info for next time
-                localStorage.setItem('almajd-last-room', roomName);
-                localStorage.setItem('almajd-last-name', participantName);
+                localStorage.setItem('tarteel-last-room', roomName);
+                localStorage.setItem('tarteel-last-name', participantName);
 
                 // Show loading state
                 joinButton.disabled = true;
@@ -632,7 +632,7 @@
 
         // Initialize the app when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            new AlmajdMeetDesktopApp();
+            new TarteelMeetDesktopApp();
         });
 
         // Handle window events

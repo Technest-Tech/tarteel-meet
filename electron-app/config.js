@@ -1,7 +1,7 @@
-// Almajd Meet Desktop - Configuration
+// Tarteel-Meet Desktop - Configuration
 module.exports = {
   // Web application URL
-  // Production domain for Almajd Meet
+  // Production domain for Tarteel-Meet
   webAppUrl: process.env.WEB_APP_URL || 'https://almajdmeet.org',
   
   // Development settings
@@ -19,7 +19,7 @@ module.exports = {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    title: 'Almajd Meet Desktop',
+    title: 'Tarteel-Meet Desktop',
     show: false, // Don't show until ready
     titleBarStyle: 'default',
   },
@@ -39,17 +39,17 @@ module.exports = {
   
   // App metadata
   app: {
-    name: 'Almajd Meet Desktop',
+    name: 'Tarteel-Meet Desktop',
     version: '1.0.0',
-    description: 'Desktop video conferencing application for Almajd Academy',
-    author: 'Almajd Academy',
+    description: 'Desktop video conferencing application for Tarteel-Meet',
+    author: 'Tarteel Academy',
     license: 'MIT',
   },
   
   // Build settings
   build: {
-    appId: 'com.almajdacademy.meet',
-    productName: 'Almajd Meet',
+    appId: 'com.tarteelacademy.meet',
+    productName: 'Tarteel-Meet',
     directories: {
       output: 'dist'
     },

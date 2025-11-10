@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Almajd Meet Desktop - Installation Script
-echo "🚀 Installing Almajd Meet Desktop..."
+# Tarteel-Meet Desktop - Installation Script
+echo "🚀 Installing Tarteel-Meet Desktop..."
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
@@ -34,9 +34,9 @@ fi
 mkdir -p assets
 
 # Copy icon if it exists in the main project
-if [ -f "../public/logo.png" ]; then
+if [ -f "../public/tarteel.png" ]; then
     echo "📁 Copying logo..."
-    cp "../public/logo.png" "assets/icon.png"
+    cp "../public/tarteel.png" "assets/icon.png"
 fi
 
 echo "🎉 Installation complete!"

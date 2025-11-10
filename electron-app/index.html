@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Permissions-Policy" content="camera=*, microphone=*, autoplay=*, encrypted-media=*, fullscreen=*, display-capture=*, screen-wake-lock=*">
-    <title>Almajd Meet Desktop</title>
+    <title>Tarteel-Meet Desktop</title>
     <style>
         * {
             margin: 0;
@@ -274,7 +274,7 @@
         <!-- Loading Screen -->
         <div id="loading-screen" class="loading-screen">
             <div class="loading-spinner"></div>
-            <div class="loading-text">Loading Almajd Meet</div>
+            <div class="loading-text">Loading Tarteel-Meet</div>
             <div class="loading-subtitle">Preparing your video conference experience...</div>
         </div>
 
@@ -282,8 +282,8 @@
         <div id="entry-screen" class="entry-screen">
             <div class="entry-container">
                 <div class="header-section">
-                    <div class="logo">AM</div>
-                    <h1 class="app-title">Almajd Meet</h1>
+                    <div class="logo">TM</div>
+                    <h1 class="app-title">Tarteel-Meet</h1>
                     <p class="app-subtitle">Join your video conference</p>
                 </div>
 
@@ -351,7 +351,7 @@
     </div>
 
     <script>
-        class AlmajdMeetApp {
+        class TarteelMeetApp {
             constructor() {
                 this.currentRoom = null;
                 this.participantName = null;
@@ -504,7 +504,7 @@
 
         // Initialize the app when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            new AlmajdMeetApp();
+            new TarteelMeetApp();
         });
 
         // Handle window events

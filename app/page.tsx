@@ -19,10 +19,10 @@ export default function Page() {
       <div className={styles.contentWrapper}>
         <div className={styles.welcomeSection}>
           <div className={styles.logoContainer}>
-            <img src="/logo.png" alt="Almajd Academy Logo" className={styles.logo} />
+            <img src="/tarteel.png" alt="Tarteel-Meet Logo" className={styles.logo} />
           </div>
           <h1 className={styles.mainTitle}>
-            <span className={styles.titleAccent}>Almajd</span> Academy
+            <span className={styles.titleAccent}>Tarteel</span>-Meet
           </h1>
           <p className={styles.subtitle}>
             Access your video conference using the room link provided by your administrator

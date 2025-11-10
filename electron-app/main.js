@@ -186,7 +186,7 @@ function createWindow() {
   // Handle page title updates
   mainWindow.webContents.on('page-title-updated', (event, title) => {
     console.log('📄 Page title updated:', title);
-    mainWindow.setTitle(`Almajd Meet - ${title}`);
+    mainWindow.setTitle(`Tarteel-Meet - ${title}`);
   });
 
   // Inject screen capture polyfill and meeting end handler when page loads
@@ -715,4 +715,4 @@ ipcMain.handle('check-screen-capture-support', async () => {
 // Screen selection dialog handlers removed - no longer needed
 
 // Handle app protocol for deep linking (optional)
-app.setAsDefaultProtocolClient('almajd-meet');
+app.setAsDefaultProtocolClient('tarteel-meet');
