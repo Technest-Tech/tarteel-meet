@@ -53,7 +53,14 @@ export function ReactionVideoOverlay() {
         const participantId = participant.identity;
         const participantReactions = reactions.filter((r) => r.sender === participantId);
 
-        if (participantReactions.length === 0) return;
+        if (participantReactions.length === 0) {
+          // Remove overlay if no reactions
+          const existingOverlay = document.querySelector(`[data-participant-id="${participantId}"].reaction-overlay-container`);
+          if (existingOverlay) {
+            existingOverlay.remove();
+          }
+          return;
+        }
 
         // Debug log
         console.log('🔍 Looking for video tile for participant:', participantId, 'with', participantReactions.length, 'reactions');

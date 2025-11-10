@@ -36,9 +36,19 @@ export function ReactionsManager() {
         const messageData = JSON.parse(messageString);
 
         if (messageData.type === 'reaction') {
+          // Validate and normalize emoji string
+          const emojiString = String(messageData.reaction || '').trim();
+          const validEmojis: ReactionType[] = ['👍', '❤️', '😂', '😮', '👏', '🎉'];
+          const isValidEmoji = validEmojis.includes(emojiString as ReactionType);
+          
+          if (!isValidEmoji || !emojiString) {
+            console.warn('Invalid reaction emoji received:', emojiString);
+            return; // Skip invalid reactions
+          }
+
           const reaction: Reaction = {
             id: `${messageData.sender}-${messageData.timestamp}`,
-            reaction: messageData.reaction,
+            reaction: emojiString as ReactionType,
             sender: messageData.sender || participant?.identity || 'Unknown',
             timestamp: messageData.timestamp || Date.now(),
           };
@@ -63,9 +73,8 @@ export function ReactionsManager() {
           });
 
           // Show notification for non-local reactions
-          if (reaction.sender !== localParticipant?.identity) {
-            // ReactionNotification component will handle the notification
-          }
+          // ReactionNotification component will handle the notification and sound for all reactions
+          // It checks isLocal internally, so we always render it
 
           // Auto-remove reaction after 5 seconds
           setTimeout(() => {
@@ -98,6 +107,7 @@ export function ReactionsManager() {
   );
 
   // Render reaction notifications
+  // Show notifications for all reactions - the component handles isLocal check internally
   return (
     <>
       {reactions.map((reaction) => {
