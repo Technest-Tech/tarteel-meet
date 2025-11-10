@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { PageClientImpl } from '@/app/rooms/[roomName]/PageClientImpl';
+import { SimpleNameInputPage } from '@/lib/SimpleNameInputPage';
 
 interface RoomValidation {
   exists: boolean;
@@ -24,6 +25,8 @@ export default function ShortRoomAccess() {
   const [roomValidation, setRoomValidation] = useState<RoomValidation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [showNameInput, setShowNameInput] = useState(true);
 
   // Debug logging
   console.log('🔍 Short Room Access Debug:', {
@@ -158,8 +161,20 @@ export default function ShortRoomAccess() {
     );
   }
 
+  // Show name input page if name not provided
+  if (showNameInput && !userName) {
+    return (
+      <SimpleNameInputPage
+        onNameSubmit={(name) => {
+          setUserName(name);
+          setShowNameInput(false);
+        }}
+      />
+    );
+  }
+
   // Generate a meaningful participant name based on access type
-  const participantName = accessType === 'host' ? 'Host' : 'Guest';
+  const participantName = userName || (accessType === 'host' ? 'Host' : 'Guest');
   
   // Both host and guest join the SAME meeting room
   // Host gets admin permissions, guest gets basic permissions

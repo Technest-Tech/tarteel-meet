@@ -9,6 +9,10 @@ import { MoreControls } from '@/lib/MoreControls';
 import { SettingsMenu } from '@/lib/SettingsMenu';
 import { ConnectionDetails } from '@/lib/types';
 import { ChatButton } from '@/lib/ChatButton';
+import { ReactionButton } from '@/lib/ReactionButton';
+import { ReactionsManager } from '@/lib/ReactionsManager';
+import { ReactionVideoOverlay } from '@/lib/ReactionVideoOverlay';
+import { StudentMonitorPiP } from '@/lib/StudentMonitorPiP';
 import {
   formatChatMessageLinks,
   LocalUserChoices,
@@ -26,11 +30,17 @@ import {
   RoomEvent,
   TrackPublishDefaults,
   VideoCaptureOptions,
+  DisconnectReason,
 } from 'livekit-client';
 import { useRouter } from 'next/navigation';
 import { useSetupE2EE } from '@/lib/useSetupE2EE';
 import { useLowCPUOptimizer } from '@/lib/usePerfomanceOptimiser';
 import { CustomPreJoin } from '@/lib/CustomPreJoin';
+import { logger } from '@/lib/utils/logger';
+import { estimateNetworkSpeed, getAdaptiveTimeout } from '@/lib/utils/networkTest';
+import { useNetworkMonitor } from '@/lib/hooks/useNetworkMonitor';
+import { useNetworkAdapter } from '@/lib/hooks/useNetworkAdapter';
+import { ConnectionQualityIndicator } from '@/lib/ConnectionQualityIndicator';
 
 // Custom SettingsMenu wrapper that can receive canRecord prop
 function CustomSettingsMenu(props: any) {
@@ -58,6 +68,7 @@ export function PageClientImpl(props: {
   );
   const [connectionStatus, setConnectionStatus] = React.useState<'connecting' | 'connected' | 'error'>('connecting');
   const [errorMessage, setErrorMessage] = React.useState<string>('');
+  const [meetingEnded, setMeetingEnded] = React.useState(false);
 
   // Auto-connect without pre-join
   React.useEffect(() => {
@@ -120,7 +131,7 @@ export function PageClientImpl(props: {
     setConnectionDetails(connectionDetailsData);
   }, [props.roomName, props.region, props.participantType]);
 
-  const handlePreJoinError = React.useCallback((e: any) => console.error(e), []);
+  const handlePreJoinError = React.useCallback((e: any) => logger.error(e), []);
 
   return (
     <main data-lk-theme="default" style={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
@@ -195,6 +206,8 @@ export function PageClientImpl(props: {
           participantType={props.participantType}
           roomName={props.roomName}
           canRecord={props.canRecord}
+          meetingEnded={meetingEnded}
+          setMeetingEnded={setMeetingEnded}
         />
       )}
     </main>
@@ -211,6 +224,8 @@ function VideoConferenceComponent(props: {
   participantType?: 'host' | 'guest'; // Add participant type
   roomName: string; // Add roomName for host controls
   canRecord?: boolean; // Add canRecord prop
+  meetingEnded: boolean; // Add meetingEnded state
+  setMeetingEnded: (ended: boolean) => void; // Add setMeetingEnded function
 }) {
   const router = useRouter();
   const keyProvider = new ExternalE2EEKeyProvider();
@@ -274,7 +289,7 @@ function VideoConferenceComponent(props: {
 
   // Debug logging for host controls
   React.useEffect(() => {
-    console.log('🔍 Host Controls Debug:', {
+    logger.debug('🔍 Host Controls Debug:', {
       participantType: props.participantType,
       roomName: props.roomName,
       connectionDetails: props.connectionDetails,
@@ -283,9 +298,9 @@ function VideoConferenceComponent(props: {
     
     // Additional debugging for host controls rendering
     if (props.participantType === 'host') {
-      console.log('✅ Host controls should be visible');
+      logger.debug('✅ Host controls should be visible');
     } else {
-      console.log('❌ Host controls hidden - participant type:', props.participantType);
+      logger.debug('❌ Host controls hidden - participant type:', props.participantType);
     }
   }, [props.participantType, props.roomName, props.connectionDetails]);
 
@@ -300,7 +315,7 @@ function VideoConferenceComponent(props: {
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [userInteractionRequired, setUserInteractionRequired] = React.useState(false); // Auto-connect by default
   const [reconnectAttempts, setReconnectAttempts] = React.useState(0);
-  const MAX_RECONNECT_ATTEMPTS = 3;
+  const MAX_RECONNECT_ATTEMPTS = 5; // Increased from 3 to 5 with exponential backoff
 
   // Function to handle user interaction and start connection
   const handleUserInteraction = React.useCallback(async () => {
@@ -311,7 +326,7 @@ function VideoConferenceComponent(props: {
     
     try {
       // Request media permissions first
-      console.log('Requesting media permissions...');
+      logger.log('Requesting media permissions...');
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: props.userChoices.videoEnabled,
@@ -320,15 +335,15 @@ function VideoConferenceComponent(props: {
         
         // Stop the stream immediately as we just needed permission
         stream.getTracks().forEach(track => track.stop());
-        console.log('Media permissions granted');
+        logger.log('Media permissions granted');
       } catch (permissionError) {
-        console.error('Media permission denied:', permissionError);
+        logger.error('Media permission denied:', permissionError);
         // Continue anyway - LiveKit will handle the case where permissions are denied
       }
       
       // Clean up any existing connection first
       if (room && room.state !== 'disconnected') {
-        console.log('Cleaning up existing connection before reconnecting...');
+        logger.log('Cleaning up existing connection before reconnecting...');
         await room.disconnect();
         // Wait a bit for cleanup to complete
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -339,12 +354,26 @@ function VideoConferenceComponent(props: {
       room.on(RoomEvent.EncryptionError, handleEncryptionError);
       room.on(RoomEvent.MediaDevicesError, handleError);
 
-      // Attempt connection
-      await room.connect(
+      // Estimate network speed before connecting
+      const networkTest = await estimateNetworkSpeed();
+      const timeout = getAdaptiveTimeout(networkTest.speed);
+      logger.log(`Network speed: ${networkTest.speed}, using ${timeout / 1000}s timeout`);
+
+      // Attempt connection with adaptive timeout
+      const connectPromise = room.connect(
         props.connectionDetails.serverUrl,
         props.connectionDetails.participantToken,
         connectOptions,
       );
+
+      // Set timeout for connection
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Connection timeout after ${timeout / 1000} seconds`));
+        }, timeout);
+      });
+
+      await Promise.race([connectPromise, timeoutPromise]);
       
       setIsConnected(true);
       setIsConnecting(false);
@@ -355,41 +384,57 @@ function VideoConferenceComponent(props: {
         // Enable camera and microphone based on user choices (camera off, microphone on by default)
         if (props.userChoices.videoEnabled) {
           room.localParticipant.setCameraEnabled(true).catch((error) => {
-            console.warn('Failed to enable camera:', error);
+            logger.warn('Failed to enable camera:', error);
             // Don't treat camera enable failure as a critical error
           });
         } else {
           // Ensure camera is disabled if not wanted
           room.localParticipant.setCameraEnabled(false).catch((error) => {
-            console.warn('Failed to disable camera:', error);
+            logger.warn('Failed to disable camera:', error);
           });
         }
         
         if (props.userChoices.audioEnabled) {
           room.localParticipant.setMicrophoneEnabled(true).catch((error) => {
-            console.warn('Failed to enable microphone:', error);
+            logger.warn('Failed to enable microphone:', error);
             // Don't treat microphone enable failure as a critical error
           });
         } else {
           // Ensure microphone is disabled if not wanted
           room.localParticipant.setMicrophoneEnabled(false).catch((error) => {
-            console.warn('Failed to disable microphone:', error);
+            logger.warn('Failed to disable microphone:', error);
           });
         }
       }, 1000); // 1 second delay
       
     } catch (error) {
-      console.error('Connection failed:', error);
+      logger.error('Connection failed:', error);
       setIsConnecting(false);
-      setReconnectAttempts(prev => prev + 1);
+      const newAttempts = reconnectAttempts + 1;
+      setReconnectAttempts(newAttempts);
       
       // If we've exceeded reconnection attempts, show an error
-      if (reconnectAttempts + 1 >= MAX_RECONNECT_ATTEMPTS) {
+      if (newAttempts >= MAX_RECONNECT_ATTEMPTS) {
         alert('Failed to connect after multiple attempts. Please refresh the page and try again.');
         router.push('/');
       } else {
-        // Reset to allow user to try again
-        setUserInteractionRequired(true);
+        // Exponential backoff: 1s, 2s, 4s, 8s delays
+        const backoffDelay = Math.min(1000 * Math.pow(2, newAttempts - 1), 8000);
+        logger.log(`Retrying connection in ${backoffDelay / 1000}s (attempt ${newAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+        
+        // Check network quality before retry
+        const networkTest = await estimateNetworkSpeed();
+        if (networkTest.speed === 'slow') {
+          logger.warn('Network is slow, may need to reduce quality');
+        }
+        
+        // Retry after backoff delay
+        setTimeout(() => {
+          if (!isConnected && !isConnecting) {
+            setUserInteractionRequired(false);
+            handleUserInteraction();
+          }
+        }, backoffDelay);
       }
     }
   }, [isConnecting, isConnected, room, props.connectionDetails.serverUrl, props.connectionDetails.participantToken, props.userChoices.videoEnabled, props.userChoices.audioEnabled, connectOptions, router, reconnectAttempts]);
@@ -405,15 +450,19 @@ function VideoConferenceComponent(props: {
 
   const lowPowerMode = useLowCPUOptimizer(room);
   
+  // Network monitoring and adaptation
+  const { quality, stats } = useNetworkMonitor(isConnected ? room : null);
+  useNetworkAdapter(isConnected ? room : null, quality);
+  
   const handleError = React.useCallback((error: Error) => {
-    console.error('LiveKit error:', error);
+    logger.error('LiveKit error:', error);
     
     // Handle specific RTCPeerConnection errors
     if (error.message.includes('setRemoteDescription') || error.message.includes('addIceCandidate')) {
-      console.warn('RTCPeerConnection error - connection may be in invalid state');
+      logger.warn('RTCPeerConnection error - connection may be in invalid state');
       // Try to reconnect if the connection is in a bad state
       if (room && room.state !== 'disconnected') {
-        console.log('Attempting to reconnect due to RTCPeerConnection error');
+        logger.log('Attempting to reconnect due to RTCPeerConnection error');
         room.disconnect();
         // Reset connection state
         setIsConnected(false);
@@ -424,7 +473,7 @@ function VideoConferenceComponent(props: {
     
     // Handle AudioContext errors (browser permission issues)
     if (error.message.includes('AudioContext') || error.message.includes('not allowed to start')) {
-      console.warn('AudioContext permission error - user needs to interact with page first');
+      logger.warn('AudioContext permission error - user needs to interact with page first');
       // Reset to user interaction state to allow them to try again
       setIsConnected(false);
       setIsConnecting(false);
@@ -434,7 +483,7 @@ function VideoConferenceComponent(props: {
     
     // Handle WebRTC connection errors
     if (error.message.includes('could not establish pc connection') || error.message.includes('Client initiated disconnect')) {
-      console.warn('WebRTC connection error - this may be due to component lifecycle issues');
+      logger.warn('WebRTC connection error - this may be due to component lifecycle issues');
       // Reset to user interaction state to allow them to try again
       setIsConnected(false);
       setIsConnecting(false);
@@ -444,20 +493,20 @@ function VideoConferenceComponent(props: {
     
     // Handle camera track placeholder errors
     if (error.message.includes('Element not part of the array') || error.message.includes('camera_placeholder')) {
-      console.warn('Camera track placeholder error - this is usually a timing issue');
+      logger.warn('Camera track placeholder error - this is usually a timing issue');
       // Don't disconnect for this error, it's usually resolved automatically
       return;
     }
     
     // Don't show alert for common connection issues to avoid spam
     if (error.message.includes('duplicate') || error.message.includes('already exists')) {
-      console.warn('Duplicate participant detected, this is normal during reconnections');
+      logger.warn('Duplicate participant detected, this is normal during reconnections');
       return;
     }
     
     // Handle screen sharing permission cancellation gracefully
     if (error.message.includes('Permission denied by user') || error.message.includes('NotAllowedError')) {
-      console.log('Screen sharing permission was denied by user - this is expected behavior');
+      logger.log('Screen sharing permission was denied by user - this is expected behavior');
       // Don't show alert for permission cancellation, just log it
       return;
     }
@@ -469,14 +518,38 @@ function VideoConferenceComponent(props: {
   }, [room]);
   
   const handleEncryptionError = React.useCallback((error: Error) => {
-    console.error('LiveKit encryption error:', error);
+    logger.error('LiveKit encryption error:', error);
     alert(
       `Encountered an unexpected encryption error, check the console logs for details: ${error.message}`,
     );
   }, []);
 
-  const handleOnLeave = React.useCallback(() => {
-    console.log('Room disconnected, cleaning up...');
+  const handleOnLeave = React.useCallback((reason?: DisconnectReason) => {
+    logger.log('Room disconnected, reason:', reason);
+    
+    // If disconnected due to being removed by host, don't auto-reconnect
+    if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+      logger.log('Participant was removed by host, not reconnecting');
+      props.setMeetingEnded(true); // Mark as ended to prevent reconnection
+      router.push('/');
+      return;
+    }
+    
+    // If meeting was ended, don't reconnect
+    if (props.meetingEnded) {
+      logger.log('Meeting was ended, not reconnecting');
+      router.push('/');
+      return;
+    }
+    
+    // Check if this is a user-initiated disconnect (clicking leave button)
+    // CLIENT_INITIATED means user clicked the disconnect/leave button
+    if (reason === DisconnectReason.CLIENT_INITIATED) {
+      logger.log('User intentionally left meeting (CLIENT_INITIATED)');
+      props.setMeetingEnded(true); // Mark as ended to prevent reconnection
+      router.push('/');
+      return;
+    }
     
     // Reset connection state when leaving
     setIsConnected(false);
@@ -491,30 +564,37 @@ function VideoConferenceComponent(props: {
     
     // Only redirect if this was an intentional leave (not a page reload)
     if (room.state === 'disconnected' && !document.hidden) {
-      console.log('Intentional leave detected, redirecting to home...');
+      logger.log('Intentional leave detected, redirecting to home...');
+      props.setMeetingEnded(true); // Mark as ended to prevent reconnection
       router.push('/');
     }
-  }, [router, room, handleEncryptionError, handleError]);
+  }, [router, room, handleEncryptionError, handleError, props.meetingEnded, props.setMeetingEnded]);
 
   // Check if room is already connected when connection details are available
   React.useEffect(() => {
+    // Don't auto-connect if meeting ended or user left
+    if (props.meetingEnded) {
+      logger.log('Meeting ended, skipping auto-connect');
+      return;
+    }
+    
     if (props.connectionDetails && !isConnected && !isConnecting && e2eeSetupComplete) {
       // Check if room is already connected to prevent duplicates
       if (room && room.state === 'connected') {
-        console.log('Room already connected, skipping auto-connect');
+        logger.log('Room already connected, skipping auto-connect');
         setIsConnected(true);
         return;
       }
       
-      console.log('Auto-connecting to meeting...');
+      logger.log('Auto-connecting to meeting...');
       handleUserInteraction();
     }
-  }, [props.connectionDetails, isConnected, isConnecting, e2eeSetupComplete, handleUserInteraction, room]);
+  }, [props.connectionDetails, isConnected, isConnecting, e2eeSetupComplete, handleUserInteraction, room, props.meetingEnded]);
 
   // All hooks must be called before any conditional returns
   React.useEffect(() => {
     if (lowPowerMode) {
-      console.warn('Low power mode enabled');
+      logger.warn('Low power mode enabled');
     }
   }, [lowPowerMode]);
 
@@ -522,18 +602,18 @@ function VideoConferenceComponent(props: {
   React.useEffect(() => {
     const handleBeforeUnload = () => {
       if (room && room.state !== 'disconnected') {
-        console.log('Page unloading, disconnecting from room...');
+        logger.log('Page unloading, disconnecting from room...');
         room.disconnect();
       }
     };
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        console.log('Page hidden, but keeping room connection active for screen sharing...');
+        logger.log('Page hidden, but keeping room connection active for screen sharing...');
         // Don't disconnect when switching tabs - this allows screen sharing to continue
         // The room will only disconnect when the page is actually unloaded (beforeunload)
       } else {
-        console.log('Page visible again');
+        logger.log('Page visible again');
       }
     };
 
@@ -548,7 +628,7 @@ function VideoConferenceComponent(props: {
       
       // Cleanup room connection when component unmounts
       if (room && room.state !== 'disconnected') {
-        console.log('Component unmounting, disconnecting from room...');
+        logger.log('Component unmounting, disconnecting from room...');
         room.disconnect();
       }
     };
@@ -634,11 +714,32 @@ function VideoConferenceComponent(props: {
           🏠 {props.connectionDetails?.roomName || 'Meeting'}
         </div>
         
+        {/* Connection Quality Indicator */}
+        {isConnected && (
+          <ConnectionQualityIndicator quality={quality} stats={stats} />
+        )}
+        
         <KeyboardShortcuts />
         <VideoConference
           chatMessageFormatter={formatChatMessageLinks}
           SettingsComponent={SHOW_SETTINGS_MENU ? (props: any) => <CustomSettingsMenu {...props} canRecord={props.canRecord} /> : undefined}
         />
+        
+        {/* Reactions Manager - Handles reaction notifications and state */}
+        <ReactionsManager />
+        
+        {/* Reaction Video Overlay - Adds reaction overlays to video tiles */}
+        <ReactionVideoOverlay />
+        
+        {/* Student Monitor PiP - Shows students when teacher is screen sharing (Host only) */}
+        {props.participantType === 'host' && (
+          <StudentMonitorPiP 
+            key="student-monitor-pip" 
+            isHost={true}
+            disabled={false}
+            showProBadge={false}
+          />
+        )}
         
         {/* Custom Chat Button - Positioned above More button */}
         <div style={{
@@ -647,9 +748,12 @@ function VideoConferenceComponent(props: {
           right: '20px', // Same horizontal position as More button
           zIndex: 1000, // Lower z-index to appear under camera background selection
           display: 'flex',
-          alignItems: 'center'
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '12px'
         }}>
           <ChatButton isHost={props.participantType === 'host'} />
+          <ReactionButton isHost={props.participantType === 'host'} />
         </div>
         
         <DebugMode />
@@ -692,8 +796,8 @@ function VideoConferenceComponent(props: {
               canRecord={props.canRecord}
               roomName={props.roomName}
               onEndMeeting={async () => {
-                console.log('🚪 End Meeting button clicked!');
-                console.log('Current props:', { participantType: props.participantType, roomName: props.roomName });
+                logger.log('🚪 End Meeting button clicked!');
+                logger.log('Current props:', { participantType: props.participantType, roomName: props.roomName });
                 
                 // Host can end the meeting for all participants
                 const confirmMessage = `🚨 END MEETING FOR ALL PARTICIPANTS
@@ -710,7 +814,7 @@ Are you sure you want to end the meeting for everyone?`;
                     // Call the server-side API to end the meeting for everyone
                     // Use the actual LiveKit room name from connection details
                     const actualRoomName = props.connectionDetails?.roomName || props.roomName;
-                    console.log('Ending meeting for room:', actualRoomName);
+                    logger.log('Ending meeting for room:', actualRoomName);
                     
                     const response = await fetch(`/api/admin/rooms/${props.roomName}/end-meeting`, {
                       method: 'POST',
@@ -724,7 +828,7 @@ Are you sure you want to end the meeting for everyone?`;
 
                     if (response.ok) {
                       const result = await response.json();
-                      console.log('Meeting ended successfully:', result);
+                      logger.log('Meeting ended successfully:', result);
                       
                       // Show success message
                       const successMessage = `✅ MEETING ENDED SUCCESSFULLY!

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Room, RoomEvent, RoomConnectOptions, Track, TrackPublication, VideoPresets } from 'livekit-client';
+import { Room, RoomEvent, RoomConnectOptions, Track, TrackPublication, VideoPresets, DisconnectReason } from 'livekit-client';
 import { RoomContext, VideoTrack, useLocalParticipant, useParticipants } from '@livekit/components-react';
 import { TrackToggle, MediaDeviceMenu } from '@livekit/components-react';
 import { KeyboardShortcuts } from '@/lib/KeyboardShortcuts';
@@ -12,6 +12,11 @@ import { ExternalE2EEKeyProvider } from 'livekit-client';
 import { PictureInPicture } from '@/lib/PictureInPicture';
 import { PictureInPictureControl } from '@/lib/PictureInPictureControl';
 import { MoreControls } from '@/lib/MoreControls';
+import { StudentMonitorPiP } from '@/lib/StudentMonitorPiP';
+import { logger } from '@/lib/utils/logger';
+import { useNetworkMonitor } from '@/lib/hooks/useNetworkMonitor';
+import { useNetworkAdapter } from '@/lib/hooks/useNetworkAdapter';
+import { ConnectionQualityIndicator } from '@/lib/ConnectionQualityIndicator';
 
 interface VideoConferenceClientImplProps {
   liveKitUrl: string;
@@ -22,13 +27,14 @@ interface VideoConferenceClientImplProps {
   roomName?: string;
 }
 
-// Video participant component
-function VideoParticipant({ participant, isLocal = false }: { participant: any; isLocal?: boolean }) {
-  const videoTrack = participant.getTrack(Track.Source.Camera);
-  const audioTrack = participant.getTrack(Track.Source.Microphone);
+// Video participant component - memoized to prevent unnecessary re-renders
+const VideoParticipant = React.memo(({ participant, isLocal = false }: { participant: any; isLocal?: boolean }) => {
+  // Memoize track lookups to prevent recalculation on every render
+  const videoTrack = useMemo(() => participant.getTrack(Track.Source.Camera), [participant]);
+  const audioTrack = useMemo(() => participant.getTrack(Track.Source.Microphone), [participant]);
 
   // Debug logging
-  console.log(`VideoParticipant render - ${isLocal ? 'Local' : 'Remote'}:`, {
+  logger.debug(`VideoParticipant render - ${isLocal ? 'Local' : 'Remote'}:`, {
     participant: participant.identity,
     videoTrack: videoTrack ? {
       sid: videoTrack.sid,
@@ -88,26 +94,36 @@ function VideoParticipant({ participant, isLocal = false }: { participant: any; 
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  return (
+    prevProps.participant.sid === nextProps.participant.sid &&
+    prevProps.isLocal === nextProps.isLocal &&
+    prevProps.participant.identity === nextProps.participant.identity
+  );
+});
 
-// Main video layout component
-function VideoLayout({ room }: { room: Room }) {
+// Main video layout component - memoized to prevent unnecessary re-renders
+const VideoLayout = React.memo(({ room }: { room: Room }) => {
   const { localParticipant } = useLocalParticipant();
   const participants = useParticipants();
 
-  console.log('VideoLayout render:', {
+  // Memoize participant list to prevent recalculation
+  const participantList = useMemo(() => participants.map(p => ({
+    identity: p.identity,
+    sid: p.sid
+  })), [participants]);
+
+  logger.debug('VideoLayout render:', {
     localParticipant: localParticipant ? {
       identity: localParticipant.identity,
       sid: localParticipant.sid
     } : null,
-    participants: participants.map(p => ({
-      identity: p.identity,
-      sid: p.sid
-    }))
+    participants: participantList
   });
 
   if (!localParticipant) {
-    console.log('No local participant available');
+    logger.debug('No local participant available');
     return null;
   }
 
@@ -148,7 +164,7 @@ function VideoLayout({ room }: { room: Room }) {
       </div>
     </div>
   );
-}
+});
 
 export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps) {
   const [error, setError] = useState<string | null>(null);
@@ -198,7 +214,7 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
   const handleUserInteraction = () => {
     if (!hasUserInteracted) {
       setHasUserInteracted(true);
-      console.log('User interaction detected, enabling audio context');
+      logger.log('User interaction detected, enabling audio context');
     }
   };
 
@@ -206,7 +222,7 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
   useEffect(() => {
     const handleConnectionStateChange = () => {
       setConnectionStatus(room.state);
-      console.log('Room connection state:', room.state);
+      logger.log('Room connection state:', room.state);
       
       // Update refs based on connection state
       if (room.state === 'connected') {
@@ -227,15 +243,23 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
       }
     };
 
-    const handleDisconnected = () => {
-      console.log('Room disconnected');
+    const handleDisconnected = (reason?: DisconnectReason) => {
+      logger.log('Room disconnected, reason:', reason);
+      
+      // If disconnected due to being removed by host, redirect to home
+      if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+        logger.log('Participant was removed by host, redirecting to home');
+        window.location.href = '/';
+        return;
+      }
+      
       setConnectionStatus('Disconnected');
       isConnecting.current = false;
       setIsLoading(false);
     };
 
     const handleConnected = () => {
-      console.log('Room connected successfully');
+      logger.log('Room connected successfully');
       setConnectionStatus('Connected');
       hasConnected.current = true;
       isConnecting.current = false;
@@ -243,11 +267,11 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
     };
 
     const handleParticipantConnected = (participant: any) => {
-      console.log('Participant connected:', participant.identity);
+      logger.log('Participant connected:', participant.identity);
     };
 
     const handleParticipantDisconnected = (participant: any) => {
-      console.log('Participant disconnected:', participant.identity);
+      logger.log('Participant disconnected:', participant.identity);
     };
 
     room.on(RoomEvent.ConnectionStateChanged, handleConnectionStateChange);
@@ -287,24 +311,29 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
   // Connection effect - only run when ready and user has interacted
   useEffect(() => {
     if (e2eeSetupComplete && hasUserInteracted && !isConnecting.current && !hasConnected.current) {
-      console.log('Connecting to room...', props.liveKitUrl);
+      logger.log('Connecting to room...', props.liveKitUrl);
       isConnecting.current = true;
-      
-      // Set connection timeout
-      connectionTimeoutRef.current = setTimeout(() => {
-        if (isConnecting.current && room.state === 'connecting') {
-          console.log('Connection timeout, disconnecting...');
-          room.disconnect();
-          isConnecting.current = false;
-          setError('Connection timeout. Please check your internet connection and try again.');
-          setCanRetry(true);
-        }
-      }, 30000); // 30 second timeout
       
       const connectToRoom = async () => {
         try {
+          // Estimate network speed before connecting
+          const networkTest = await estimateNetworkSpeed();
+          const timeout = getAdaptiveTimeout(networkTest.speed);
+          logger.log(`Network speed: ${networkTest.speed}, using ${timeout / 1000}s timeout`);
+          
+          // Set adaptive connection timeout
+          connectionTimeoutRef.current = setTimeout(() => {
+            if (isConnecting.current && room.state === 'connecting') {
+              logger.log('Connection timeout, disconnecting...');
+              room.disconnect();
+              isConnecting.current = false;
+              setError('Connection timeout. Please check your internet connection and try again.');
+              setCanRetry(true);
+            }
+          }, timeout);
+          
           await room.connect(props.liveKitUrl, props.token, connectOptions);
-          console.log('Successfully connected to room');
+          logger.log('Successfully connected to room');
           
           // Enable camera and microphone after successful connection
           try {
@@ -338,12 +367,12 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
     
     // Force re-run of connection effect
     if (e2eeSetupComplete && hasUserInteracted) {
-      console.log('Retrying connection...');
+      logger.log('Retrying connection...');
       const connectToRoom = async () => {
         try {
           isConnecting.current = true;
           await room.connect(props.liveKitUrl, props.token, connectOptions);
-          console.log('Successfully connected to room on retry');
+          logger.log('Successfully connected to room on retry');
           
           try {
             await room.localParticipant.enableCameraAndMicrophone();
@@ -365,8 +394,8 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
   // Track debugging effect
   useEffect(() => {
     if (room.state === 'connected') {
-      console.log('Room connected, setting up track listeners');
-      console.log('Local participant:', {
+      logger.debug('Room connected, setting up track listeners');
+      logger.debug('Local participant:', {
         identity: room.localParticipant.identity,
         sid: room.localParticipant.sid,
         tracks: Array.from(room.localParticipant.trackPublications.values()).map(publication => ({
@@ -378,7 +407,7 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
       });
 
       const handleTrackPublished = (publication: TrackPublication) => {
-        console.log('Track published:', {
+        logger.debug('Track published:', {
           trackSid: publication.trackSid,
           source: publication.source,
           track: publication.track ? {
@@ -389,12 +418,12 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
           } : null
         });
         if (publication.source === Track.Source.Camera) {
-          console.log('Camera track published:', publication.trackSid);
+          logger.debug('Camera track published:', publication.trackSid);
         }
       };
 
       const handleTrackUnpublished = (publication: TrackPublication) => {
-        console.log('Track unpublished:', {
+        logger.debug('Track unpublished:', {
           trackSid: publication.trackSid,
           source: publication.source
         });
@@ -412,11 +441,15 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
 
   useLowCPUOptimizer(room);
 
+  // Network monitoring and adaptation
+  const { quality, stats } = useNetworkMonitor(room.state === 'connected' ? room : null);
+  useNetworkAdapter(room.state === 'connected' ? room : null, quality);
+
   // Cleanup on unmount - only disconnect if we're actually connected
   useEffect(() => {
     return () => {
       if (room && room.state === 'connected') {
-        console.log('Component unmounting, disconnecting from room');
+        logger.log('Component unmounting, disconnecting from room');
         room.disconnect();
       }
       // Clear any pending timeout
@@ -494,6 +527,11 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
           {isLoading ? 'Connecting...' : connectionStatus}
         </div>
         
+        {/* Connection Quality Indicator */}
+        {room.state === 'connected' && (
+          <ConnectionQualityIndicator quality={quality} stats={stats} />
+        )}
+        
         {/* Responsive Control Bar */}
         <div className="mobile-control-bar" style={{
           position: 'fixed',
@@ -566,6 +604,9 @@ Are you sure you want to end the meeting for everyone?`;
 
         {/* Main video area with proper LiveKit components */}
         <VideoLayout room={room} />
+        
+        {/* Student Monitor PiP - Shows students when teacher is screen sharing (Host only) */}
+        <StudentMonitorPiP isHost={props.isHost} disabled={false} showProBadge={false} />
         
         {/* Picture-in-Picture for participants with camera active */}
         <PictureInPicture 

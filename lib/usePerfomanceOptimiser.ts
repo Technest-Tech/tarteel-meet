@@ -9,6 +9,7 @@ import {
   isVideoTrack,
 } from 'livekit-client';
 import * as React from 'react';
+import { logger } from './utils/logger';
 
 export type LowCPUOptimizerOptions = {
   reducePublisherVideoQuality: boolean;
@@ -32,7 +33,7 @@ export function useLowCPUOptimizer(room: Room, options: Partial<LowCPUOptimizerO
   React.useEffect(() => {
     const handleCpuConstrained = async (track: LocalVideoTrack) => {
       setLowPowerMode(true);
-      console.warn('Local track CPU constrained', track);
+      logger.warn('Local track CPU constrained', track);
       if (opts.reducePublisherVideoQuality) {
         track.prioritizePerformance();
       }
