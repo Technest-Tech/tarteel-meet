@@ -1,0 +1,259 @@
+================================================================================
+              HOW TO WHITELIST ALMAJD MEET IN YOUR ANTIVIRUS
+================================================================================
+
+If your antivirus deleted or blocked Almajd Meet, follow these steps:
+
+
+================================================================================
+                          WINDOWS DEFENDER (Built-in)
+================================================================================
+
+METHOD 1: Add Exclusion BEFORE Installing
+------------------------------------------
+1. Press Windows key + I (open Settings)
+2. Go to "Update & Security"
+3. Click "Windows Security" 
+4. Click "Virus & threat protection"
+5. Scroll down to "Virus & threat protection settings"
+6. Click "Manage settings"
+7. Scroll to "Exclusions"
+8. Click "Add or remove exclusions"
+9. Click "Add an exclusion"
+10. Choose "Folder"
+11. Browse to where you'll extract the app
+12. Click "Select Folder"
+
+
+METHOD 2: Restore Deleted File
+-------------------------------
+1. Open Windows Security
+2. Go to "Virus & threat protection"
+3. Click "Protection history"
+4. Find "Almajd Meet" in the list
+5. Click on it
+6. Click "Actions" → "Restore"
+7. Then add exclusion using Method 1
+
+
+METHOD 3: Quick Command (Advanced)
+-----------------------------------
+1. Press Windows + X
+2. Select "Windows PowerShell (Admin)"
+3. Type: 
+   Add-MpPreference -ExclusionPath "C:\Path\To\Almajd Meet"
+   (Replace with your actual path)
+4. Press Enter
+
+
+================================================================================
+                                  AVAST / AVG
+================================================================================
+
+1. Open Avast or AVG
+2. Go to "Menu" → "Settings"
+3. Click "General" → "Exceptions"
+4. Click "Add Exception"
+5. Browse to the Almajd Meet folder
+6. Click "Add Exception"
+7. Make sure it's enabled
+
+
+================================================================================
+                                    NORTON
+================================================================================
+
+1. Open Norton
+2. Click "Settings"
+3. Go to "Antivirus" tab
+4. Under "Scans and Risks", click "Exclusions/Low Risks"
+5. Click "Configure" next to "Items to Exclude from Scans"
+6. Click "Add Folders"
+7. Browse to Almajd Meet folder
+8. Click "OK"
+
+
+================================================================================
+                                    MCAFEE
+================================================================================
+
+1. Open McAfee Security
+2. Click "PC Security"
+3. Click "Real-Time Scanning"
+4. Click "Turn Off" temporarily OR
+5. Click "Excluded Files"
+6. Click "Add File"
+7. Browse to "Almajd Meet.exe"
+8. Click "Add"
+
+
+================================================================================
+                                   KASPERSKY
+================================================================================
+
+1. Open Kaspersky
+2. Click "Settings" (gear icon)
+3. Go to "Additional" → "Threats and Exclusions"
+4. Click "Manage Exclusions"
+5. Click "Add"
+6. Select "Folder"
+7. Browse to Almajd Meet folder
+8. Click "Add"
+
+
+================================================================================
+                              BITDEFENDER
+================================================================================
+
+1. Open Bitdefender
+2. Go to "Protection"
+3. Click "View Features" under Antivirus
+4. Click "Settings" next to Advanced Threat Defense
+5. Go to "Manage Exceptions"
+6. Click "Add an Exception"
+7. Browse to Almajd Meet folder
+8. Click "Add"
+
+
+================================================================================
+                                 MALWAREBYTES
+================================================================================
+
+1. Open Malwarebytes
+2. Click "Settings" (gear icon)
+3. Go to "Security" tab
+4. Scroll to "File Exclusions"
+5. Click "Add Folder"
+6. Browse to Almajd Meet folder
+7. Click "Done"
+
+
+================================================================================
+                              TREND MICRO
+================================================================================
+
+1. Open Trend Micro
+2. Click the gear icon (Settings)
+3. Go to "Exception List"
+4. Click "Add"
+5. Select "Folder"
+6. Browse to Almajd Meet folder
+7. Click "OK"
+
+
+================================================================================
+                              ESET NOD32
+================================================================================
+
+1. Open ESET
+2. Press F5 (Advanced setup)
+3. Go to "Computer" → "Antivirus" → "Exclusions"
+4. Click "Edit" next to "Exclusions"
+5. Click "Add"
+6. Browse to Almajd Meet folder
+7. Click "OK"
+
+
+================================================================================
+                            GENERAL STEPS
+================================================================================
+
+If your antivirus is not listed:
+
+1. Open your antivirus software
+2. Look for one of these options:
+   • "Settings"
+   • "Exclusions"
+   • "Whitelist"
+   • "Exceptions"
+   • "Trusted Files"
+   
+3. Add the Almajd Meet folder to the exclusions
+4. Save the settings
+
+
+================================================================================
+                            AFTER WHITELISTING
+================================================================================
+
+1. Download or extract Almajd Meet again
+2. The antivirus should NOT delete it now
+3. Run "Almajd Meet.exe"
+4. Create a desktop shortcut for easy access
+
+
+================================================================================
+                          WHY IS THIS NECESSARY?
+================================================================================
+
+• Almajd Meet is not code-signed with an expensive certificate
+• This keeps the software free for you to use
+• Antivirus software can't verify the publisher
+• The app is COMPLETELY SAFE - just not signed
+• Adding to exclusions tells your antivirus to trust it
+
+
+================================================================================
+                              STILL HAVING ISSUES?
+================================================================================
+
+If antivirus continues to block:
+
+OPTION 1: Temporarily Disable Antivirus
+  • Turn off your antivirus for 5 minutes
+  • Extract and run Almajd Meet
+  • Add exclusion while it's running
+  • Re-enable your antivirus
+
+OPTION 2: Use Different Computer
+  • Try on a computer with different/no antivirus
+  • Or use a computer where you have admin rights
+
+OPTION 3: Contact Support
+  • Email: support@almajdacademy.com
+  • Include: Your antivirus name and version
+  • We can provide specific guidance
+
+
+================================================================================
+                            IS THIS REALLY SAFE?
+================================================================================
+
+YES! Here's why you can trust Almajd Meet:
+
+✓ Open source technology (Electron + LiveKit)
+✓ Used by thousands of organizations
+✓ No viruses, malware, or spyware
+✓ Only connects to almajdmeet.org (official server)
+✓ Can be scanned at VirusTotal.com for verification
+
+The warnings are ONLY because we don't have an expensive code signing
+certificate ($100-500/year). The app is completely legitimate and safe.
+
+
+================================================================================
+                              NEED MORE HELP?
+================================================================================
+
+Contact our support team:
+  • Email: support@almajdacademy.com
+  • Website: https://almajdmeet.org
+  • Response time: Usually within 24 hours
+
+Include in your message:
+  • Your Windows version
+  • Antivirus software name
+  • Screenshot of the error/warning
+  • Steps you've already tried
+
+
+================================================================================
+                          THANK YOU FOR YOUR PATIENCE!
+================================================================================
+
+We know this is an extra step, but it helps keep Almajd Meet FREE for everyone!
+
+Once whitelisted, you won't have to do this again. The app will work smoothly!
+
+================================================================================
+

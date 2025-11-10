@@ -1,0 +1,148 @@
+================================================================================
+                    ALMAJD MEET DESKTOP - INSTALLATION
+================================================================================
+
+Thank you for choosing Almajd Meet Desktop!
+
+Follow these simple steps to install:
+
+
+STEP 1: PREPARE YOUR ANTIVIRUS (IMPORTANT!)
+--------------------------------------------
+To prevent your antivirus from deleting the app:
+
+1. Open your antivirus software (Windows Defender, Avast, Norton, etc.)
+2. Go to "Exclusions" or "Whitelist" settings
+3. Add your Downloads folder to exclusions
+4. This prevents the app from being deleted
+
+Windows Defender Quick Steps:
+  • Press Windows key + I (Settings)
+  • Go to "Update & Security" → "Windows Security"
+  • Click "Virus & threat protection"
+  • Scroll to "Exclusions" → "Add or remove exclusions"
+  • Add "Downloads" folder
+
+
+STEP 2: EXTRACT THE ZIP FILE
+-----------------------------
+1. Locate the downloaded file: "Almajd Meet-1.0.0-win.zip"
+2. Right-click on the ZIP file
+3. Select "Extract All..."
+4. Choose where to extract (recommend: Desktop or C:\Program Files)
+5. Click "Extract"
+
+
+STEP 3: LAUNCH THE APPLICATION
+-------------------------------
+1. Open the extracted folder
+2. Find "Almajd Meet.exe"
+3. Double-click to run
+
+If Windows shows a security warning:
+  • Click "More info"
+  • Click "Run anyway"
+  • This is normal for apps without expensive code signing
+
+
+STEP 4: CREATE A SHORTCUT (OPTIONAL)
+-------------------------------------
+For easy access:
+1. Right-click "Almajd Meet.exe"
+2. Select "Send to" → "Desktop (create shortcut)"
+3. Now you can launch from your desktop!
+
+
+STEP 5: FIRST TIME SETUP
+-------------------------
+1. The app will ask for camera and microphone permissions
+2. Click "Allow" when prompted
+3. You're ready to join meetings!
+
+
+================================================================================
+                            SYSTEM REQUIREMENTS
+================================================================================
+
+Minimum:
+  • Windows 8 or newer (32-bit or 64-bit)
+  • 4 GB RAM
+  • Internet connection
+  • Webcam and microphone (for video calls)
+
+Recommended:
+  • Windows 10 or 11 (64-bit)
+  • 8 GB RAM or more
+  • Fast internet connection (5 Mbps or faster)
+
+
+================================================================================
+                            TROUBLESHOOTING
+================================================================================
+
+ANTIVIRUS DELETED THE APP:
+  → See WHITELIST_GUIDE.txt for detailed instructions
+  → Add the app folder to antivirus exclusions
+
+APP WON'T START:
+  → Right-click and "Run as administrator"
+  → Check if antivirus blocked it
+  → Make sure you extracted the ZIP file (don't run from ZIP)
+
+CAMERA/MICROPHONE NOT WORKING:
+  → Grant permissions when prompted
+  → Check Windows Privacy Settings
+  → Make sure other apps aren't using them
+
+CAN'T JOIN MEETING:
+  → Check your internet connection
+  → Verify the Room ID is correct
+  → Contact meeting host for the correct Room ID
+
+
+================================================================================
+                            NEED HELP?
+================================================================================
+
+Support Email: support@almajdacademy.com
+Website: https://almajdmeet.org
+
+For installation help, attach:
+  • Screenshot of any error messages
+  • Your Windows version
+  • Antivirus software name
+
+
+================================================================================
+                            WHY THE SECURITY WARNING?
+================================================================================
+
+You may see "Unknown Publisher" warnings from Windows. This is NORMAL and SAFE.
+
+Why it happens:
+  • The app is not code-signed with an expensive certificate
+  • This keeps the app free for you
+  • The app is completely safe to use
+
+What to do:
+  • Click "More info" when you see the warning
+  • Click "Run anyway"
+  • Add to antivirus exclusions to prevent future blocks
+
+
+================================================================================
+                            ENJOY ALMAJD MEET!
+================================================================================
+
+Once installed, you can:
+  ✓ Join video meetings with just a Room ID
+  ✓ Share your screen
+  ✓ Chat with participants
+  ✓ Use whiteboard features
+  ✓ Record meetings (as host)
+
+Questions? We're here to help!
+Email: support@almajdacademy.com
+
+================================================================================
+
