@@ -62,3 +62,13 @@ newmeet_mobile/.packages
 newmeet_mobile/.pub-cache/
 newmeet_mobile/.pub/
 newmeet_mobile/pubspec.lock
+
+# Build artifacts and binaries
+*.aab
+*.apk
+*.ipa
+*.app
+*.dmg
+*.pkg
+*.deb
+*.rpm
