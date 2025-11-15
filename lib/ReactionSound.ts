@@ -17,12 +17,12 @@ class ReactionSoundManager {
 
   private preloadSounds() {
     const reactionSounds: { [key in ReactionType]: string } = {
-      '👍': '/sounds/thumbs-up.mp3',
-      '❤️': '/sounds/heart.mp3',
-      '😂': '/sounds/laughing.mp3',
-      '😮': '/sounds/surprised.mp3',
-      '👏': '/sounds/clapping.mp3',
-      '🎉': '/sounds/celebration.mp3',
+      '👍': '/sounds/365scores_like.mp3',
+      '❤️': '/sounds/my_love.mp3',
+      '😂': '/sounds/laughs.mp3',
+      '😮': '/sounds/wow.mp3',
+      '👏': '/sounds/clap.mp3',
+      '🎉': '/sounds/children_celebrating.mp3',
     };
 
     // Try to preload sounds, but handle errors gracefully
@@ -56,7 +56,15 @@ class ReactionSoundManager {
           // Reset to start and play
           audio.currentTime = 0;
           audio.volume = this.volume;
-          audio.play().catch((error) => {
+          audio.play().then(() => {
+            // Stop playback after 3 seconds
+            setTimeout(() => {
+              if (!audio.paused) {
+                audio.pause();
+                audio.currentTime = 0;
+              }
+            }, 3000);
+          }).catch((error) => {
             // If file doesn't exist, play fallback beep
             this.playFallbackBeep(reaction);
           });

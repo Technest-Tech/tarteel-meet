@@ -41,6 +41,7 @@ import { estimateNetworkSpeed, getAdaptiveTimeout } from '@/lib/utils/networkTes
 import { useNetworkMonitor } from '@/lib/hooks/useNetworkMonitor';
 import { useNetworkAdapter } from '@/lib/hooks/useNetworkAdapter';
 import { ConnectionQualityIndicator } from '@/lib/ConnectionQualityIndicator';
+import { MeetingTimer } from '@/lib/MeetingTimer';
 
 // Custom SettingsMenu wrapper that can receive canRecord prop
 function CustomSettingsMenu(props: any) {
@@ -713,6 +714,9 @@ function VideoConferenceComponent(props: {
         }}>
           🏠 {props.connectionDetails?.roomName || 'Meeting'}
         </div>
+        
+        {/* Meeting Timer */}
+        <MeetingTimer room={room} isConnected={isConnected} />
         
         {/* Connection Quality Indicator */}
         {isConnected && (

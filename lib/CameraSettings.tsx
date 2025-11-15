@@ -13,14 +13,6 @@ import { isLocalTrack, LocalTrackPublication, Track } from 'livekit-client';
 // Dynamically import track processors to avoid SSR issues
 let BackgroundBlur: any, VirtualBackground: any;
 
-// Only import track processors on the client side
-if (typeof window !== 'undefined') {
-  import('@livekit/track-processors').then(({ BackgroundBlur: BB, VirtualBackground: VB }) => {
-    BackgroundBlur = BB;
-    VirtualBackground = VB;
-  });
-}
-
 // Background image - using the logo from public folder
 const BACKGROUND_IMAGES = [
   { name: 'Tarteel', path: '/tarteel.png' },
@@ -29,6 +21,12 @@ const BACKGROUND_IMAGES = [
 // Background options
 type BackgroundType = 'none' | 'blur' | 'image';
 
+interface CustomBackground {
+  id: string;
+  name: string;
+  dataUrl: string;
+}
+
 export function CameraSettings() {
   const { cameraTrack, localParticipant } = useLocalParticipant();
   const [backgroundType, setBackgroundType] = React.useState<BackgroundType>('none');
@@ -36,11 +34,36 @@ export function CameraSettings() {
     null,
   );
   const [processorsLoaded, setProcessorsLoaded] = React.useState(false);
+  const [customBackgrounds, setCustomBackgrounds] = React.useState<CustomBackground[]>([]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Check if processors are loaded
+  // Check if processors are loaded - properly wait for async import
   React.useEffect(() => {
-    if (BackgroundBlur && VirtualBackground) {
-      setProcessorsLoaded(true);
+    if (typeof window !== 'undefined') {
+      import('@livekit/track-processors')
+        .then(({ BackgroundBlur: BB, VirtualBackground: VB }) => {
+          BackgroundBlur = BB;
+          VirtualBackground = VB;
+          setProcessorsLoaded(true);
+        })
+        .catch((error) => {
+          console.error('Failed to load track processors:', error);
+        });
+    }
+  }, []);
+
+  // Load custom backgrounds from localStorage on mount
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('custom_backgrounds');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setCustomBackgrounds(parsed);
+        } catch (error) {
+          console.error('Error loading custom backgrounds:', error);
+        }
+      }
     }
   }, []);
 
@@ -59,17 +82,134 @@ export function CameraSettings() {
     }
   };
 
-  React.useEffect(() => {
-    if (isLocalTrack(cameraTrack?.track) && BackgroundBlur && VirtualBackground) {
-      if (backgroundType === 'blur') {
-        cameraTrack.track?.setProcessor(BackgroundBlur());
-      } else if (backgroundType === 'image' && virtualBackgroundImagePath) {
-        cameraTrack.track?.setProcessor(VirtualBackground(virtualBackgroundImagePath));
-      } else {
-        cameraTrack.track?.stopProcessor();
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB');
+        return;
       }
+
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        const newBg: CustomBackground = {
+          id: Date.now().toString(),
+          name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+          dataUrl: dataUrl
+        };
+        const updated = [...customBackgrounds, newBg];
+        setCustomBackgrounds(updated);
+        localStorage.setItem('custom_backgrounds', JSON.stringify(updated));
+        // Auto-select the newly uploaded background
+        selectBackground('image', dataUrl);
+      };
+      reader.readAsDataURL(file);
     }
-  }, [cameraTrack, backgroundType, virtualBackgroundImagePath]);
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const deleteCustomBackground = (id: string) => {
+    const updated = customBackgrounds.filter(bg => bg.id !== id);
+    setCustomBackgrounds(updated);
+    localStorage.setItem('custom_backgrounds', JSON.stringify(updated));
+    // If deleted background was selected, reset to none
+    const deletedBg = customBackgrounds.find(bg => bg.id === id);
+    if (deletedBg && virtualBackgroundImagePath === deletedBg.dataUrl) {
+      selectBackground('none');
+    }
+  };
+
+  React.useEffect(() => {
+    // Only proceed if processors are loaded and we have a valid track
+    if (!processorsLoaded || !BackgroundBlur || !VirtualBackground) {
+      return;
+    }
+
+    const track = cameraTrack?.track;
+    
+    // Validate track is local and ready
+    if (!isLocalTrack(track)) {
+      return;
+    }
+
+    // Check if track is enabled and has an active media stream
+    // Track should not be muted and should have a valid media stream
+    if (track.isMuted || !track.mediaStream || track.mediaStream.active === false) {
+      console.warn('Camera track is not ready for processor:', {
+        isMuted: track.isMuted,
+        hasStream: !!track.mediaStream,
+        streamActive: track.mediaStream?.active,
+      });
+      return;
+    }
+
+    // Use a flag to prevent race conditions
+    let isCancelled = false;
+
+    const applyProcessor = async () => {
+      try {
+        // Double-check track is still valid and not cancelled
+        if (isCancelled || !track.mediaStream || !track.mediaStream.active) {
+          return;
+        }
+
+        // Apply the processor based on background type
+        // setProcessor will automatically handle stopping any existing processor
+        if (backgroundType === 'blur') {
+          await track.setProcessor(BackgroundBlur());
+        } else if (backgroundType === 'image' && virtualBackgroundImagePath) {
+          await track.setProcessor(VirtualBackground(virtualBackgroundImagePath));
+        } else {
+          // Only stop processor when explicitly setting to 'none'
+          // Check if track is still valid before stopping
+          if (track.mediaStream && track.mediaStream.active) {
+            await track.stopProcessor();
+          }
+        }
+      } catch (error) {
+        // Handle errors gracefully - don't crash the app
+        // Check if error is due to stream being closed (expected during transitions)
+        if (error instanceof Error && error.message.includes('Stream closed')) {
+          console.warn('Stream closed during processor transition, this is expected:', error.message);
+          // Don't reset state for stream closed errors - they're transient
+          return;
+        }
+        
+        console.error('Error setting background processor:', error);
+        // Reset to 'none' if processor fails (but not for stream closed errors)
+        if (backgroundType !== 'none') {
+          try {
+            // Only try to stop if track is still valid
+            if (track.mediaStream && track.mediaStream.active) {
+              await track.stopProcessor();
+            }
+            setBackgroundType('none');
+            setVirtualBackgroundImagePath(null);
+          } catch (stopError) {
+            console.error('Error stopping processor:', stopError);
+          }
+        }
+      }
+    };
+
+    applyProcessor();
+
+    // Cleanup function to prevent race conditions
+    return () => {
+      isCancelled = true;
+    };
+  }, [cameraTrack, backgroundType, virtualBackgroundImagePath, processorsLoaded]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -197,6 +337,136 @@ export function CameraSettings() {
                 </span>
               </button>
             ))}
+
+            {/* Custom uploaded backgrounds */}
+            {customBackgrounds.map((bg) => (
+              <div
+                key={bg.id}
+                style={{
+                  position: 'relative',
+                  width: '80px',
+                  height: '60px',
+                }}
+                onMouseEnter={(e) => {
+                  const deleteBtn = e.currentTarget.querySelector('.delete-btn') as HTMLElement;
+                  if (deleteBtn) deleteBtn.style.display = 'flex';
+                }}
+                onMouseLeave={(e) => {
+                  const deleteBtn = e.currentTarget.querySelector('.delete-btn') as HTMLElement;
+                  if (deleteBtn) deleteBtn.style.display = 'none';
+                }}
+              >
+                <button
+                  onClick={() => selectBackground('image', bg.dataUrl)}
+                  className="lk-button"
+                  aria-pressed={
+                    backgroundType === 'image' && virtualBackgroundImagePath === bg.dataUrl
+                  }
+                  style={{
+                    backgroundImage: `url(${bg.dataUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
+                    width: '100%',
+                    height: '100%',
+                    border:
+                      backgroundType === 'image' && virtualBackgroundImagePath === bg.dataUrl
+                        ? '2px solid #0090ff'
+                        : '1px solid #d1d1d1',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    padding: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      backgroundColor: 'rgba(0,0,0,0.6)',
+                      padding: '2px 5px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      position: 'absolute',
+                      bottom: '2px',
+                      left: '2px',
+                      right: '2px',
+                      zIndex: 1,
+                      display: 'block',
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {bg.name}
+                  </span>
+                </button>
+                <button
+                  className="delete-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteCustomBackground(bg.id);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '2px',
+                    right: '2px',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    display: 'none',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10,
+                    padding: 0,
+                  }}
+                  title="Delete background"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+
+            {/* Upload button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="lk-button"
+              style={{
+                width: '80px',
+                height: '60px',
+                border: '2px dashed rgba(0, 0, 0, 0.3)',
+                backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+                e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.3)';
+              }}
+              title="Upload custom background"
+            >
+              <span style={{ fontSize: '24px' }}>📁</span>
+              <span style={{ fontSize: '10px', color: 'rgba(0, 0, 0, 0.7)' }}>Upload</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              style={{ display: 'none' }}
+            />
           </div>
         </div>
       )}

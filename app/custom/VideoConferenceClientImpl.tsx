@@ -17,6 +17,7 @@ import { logger } from '@/lib/utils/logger';
 import { useNetworkMonitor } from '@/lib/hooks/useNetworkMonitor';
 import { useNetworkAdapter } from '@/lib/hooks/useNetworkAdapter';
 import { ConnectionQualityIndicator } from '@/lib/ConnectionQualityIndicator';
+import { MeetingTimer } from '@/lib/MeetingTimer';
 
 interface VideoConferenceClientImplProps {
   liveKitUrl: string;
@@ -513,8 +514,7 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
         <div style={{
           position: 'fixed',
           top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
+          right: '20px',
           zIndex: 1000,
           padding: '8px 16px',
           backgroundColor: connectionStatus === 'Connected' ? 'rgba(34, 197, 94, 0.9)' : 'rgba(251, 191, 36, 0.9)',
@@ -526,6 +526,9 @@ export function VideoConferenceClientImpl(props: VideoConferenceClientImplProps)
         }}>
           {isLoading ? 'Connecting...' : connectionStatus}
         </div>
+        
+        {/* Meeting Timer */}
+        <MeetingTimer room={room} isConnected={room.state === 'connected'} />
         
         {/* Connection Quality Indicator */}
         {room.state === 'connected' && (
